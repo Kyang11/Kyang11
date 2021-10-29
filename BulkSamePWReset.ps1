@@ -1,6 +1,6 @@
 ﻿#Random Bulk Password Reset
 
-$TargetDomain="maxcorp.maximus"
+$TargetDomain="Domain name"
 
 function Update-Password
 {
