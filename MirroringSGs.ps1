@@ -1,0 +1,1 @@
+Get-ADPrincipalGroupMembership INSERUSERNAMEHERE | Select name

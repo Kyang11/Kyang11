@@ -1,0 +1,61 @@
+# Set above file permissions to include Authenticated Users
+$Permissionlist =
+@(
+"C:\Temp\wd_desktop_icon.ico"
+"C:\Temp\workdayhelp.ico"
+"C:\Users\Public\Desktop\Workday.url"
+"C:\Users\Public\Desktop\Workday Help.url"
+"C:\Windows\Web\Screen\MaximusLock.jpg"
+"C:\Windows\Web\Screen\MaximusWallpaper.jpg"
+)
+
+
+
+foreach ($PermEditPath in $Permissionlist)
+{
+try
+{
+$PermEdit = Get-Acl -Path $PermEditPath
+# Set properties
+$identity = "Authenticated Users"
+$fileSystemRights = "ReadAndExecute, Modify, Read, Write"
+$type = "Allow"
+# Create new rule
+$fileSystemAccessRuleArgumentList = $identity, $fileSystemRights, $type
+$fileSystemAccessRule = New-Object -TypeName System.Security.AccessControl.FileSystemAccessRule -ArgumentList $fileSystemAccessRuleArgumentList
+# Apply new rule
+$PermEdit.SetAccessRule($fileSystemAccessRule)
+Set-Acl -Path $PermEditPath -AclObject $PermEdit
+}
+catch [System.Exception]
+{
+Write-Warning -Message "Failed Permission Edit on $PermEditPath"
+}
+}
+
+# Install PolicyFileEditor module
+Write-Host "Installing PolicyFileEditor V3"
+Install-Module -Name PolicyFileEditor -Force -ErrorAction SilentlyContinue
+Import-Module PolicyFileEditor
+
+# Set RegPath variables
+$MachineDir = "$env:windir\system32\GroupPolicy\Machine\registry.pol"
+$UserDir = "$env:windir\system32\GroupPolicy\User\registry.pol"
+
+### Begin MachinePol edit
+
+Write-Host "Set LockScreenImage"
+$RegPath = 'Software\Policies\Microsoft\Windows\Personalization'
+$RegName = 'LockScreenImage'
+$RegData = 'C:\Windows\Web\Screen\MaximusLock.jpg'
+$RegType = 'String'
+Set-PolicyFileEntry -Path $MachineDir -Key $RegPath -ValueName $RegName -Data $RegData -Type $RegType
+
+Write-Host "DisableLockScreenOverlays"
+$RegPath = 'Software\Policies\Microsoft\Windows\Personalization'
+$RegName = 'LockScreenOverlaysDisabled'
+$RegData = 1
+$RegType = 'DWORD'
+Set-PolicyFileEntry -Path $MachineDir -Key $RegPath -ValueName $RegName -Data $RegData -Type $RegType
+
+gpupdate /force

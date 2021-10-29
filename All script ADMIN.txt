@@ -1,0 +1,276 @@
+﻿Import-module ActiveDirectory
+
+$Creds = Get-Credential
+
+#Import List
+$userList = Import-Csv C:\Temp\RemoveSg.csv
+
+
+Write-Host " Have a seat, lets begin!  "
+
+
+foreach($user in $userList) 
+
+{
+    
+    #Other SG's
+    Remove-ADGroupMember -Identity "SG - WSC - CDPH Call Center BYOL West" -Member $user -Confirm:$false
+    Remove-ADGroupMember -Identity "SG - WSC - CDPH Call Center BYOL East" -Member $user -Confirm:$false
+    Remove-ADGroupMember -Identity "SG - WSC - CDPH Call Center East" -Member $user -Confirm:$false
+    Remove-ADGroupMember -Identity "SG - WSC - CDPH Call Center West" -Member $user -Confirm:$false
+    Remove-ADGroupMember -Identity "SG - VDI - CDPH Call Center" -Member $user -Confirm:$false
+ 
+    Write-Host " Deprovisioning Account: "$user.samaccountname "
+}
+
+ Write-Host " Done Deprovisioning " 
+ $total = ($userList).count
+ Write-Host "Total Amount of Accounts Checked: "$total"}
+
+
+
+
+
+need to do "import activedirectory-module" first
+ADD SG GROUP 
+Get-ADUser -Identity alan0 -Properties memberof | Select-Object -ExpandProperty memberof
+
+
+Copy Memberships of one user to another user
+Get-ADUser -Identity <UserID> -Properties memberof | Select-Object -ExpandProperty memberof |  Add-ADGroupMember -Members <New UserID>
+
+
+
+PASSWORD RESET
+​
+   Import-Module ActiveDirectory
+
+# Set the default password
+$password = ConvertTo-SecureString -AsPlainText “AwesomeP@ssw0rd” -Force
+
+# Get the list of accounts from the file on file
+# List the user names one per line
+$users = Get-Content -Path D:\PWreset.txt
+
+ForEach ($user in $users)
+{
+# Set the default password for the current account
+Get-ADUser $user | Set-ADAccountPassword -NewPassword $password -Reset
+
+#If you need to set the property “Change password at next logon”,
+#leave the next alone. If not, comment the next line
+Get-ADUser $user | Set-AdUser -ChangePasswordAtLogon $true
+
+Write-Host “Password has been reset for the user: $user”
+}
+
+# ————- End ———–
+
+
+
+
+Account disable 
+#Import-Module activedirectory
+
+#$namelist=Import-Csv C:\PortalDisableFinal.csv
+
+#foreach($name in $namelist){Disable-ADAccount -Identity $name.samaccount }
+
+#$users=Get-Content c:\it\users.txt
+
+Import-Module activedirectory
+
+$users=Get-Content D:\AccountDisable.txt
+
+ForEach ($user in $users)
+
+{
+
+Disable-ADAccount -Identity $user
+
+write-host "user $($user) has been disabled"
+
+}
+
+
+
+
+
+
+<#
+SoftDisable by Ku Yang
+- reset password
+- Uncheck must disable after
+- Check user cannot change password
+- End of 3 days before current date
+- Description
+#>
+function Set-SoftDisable {
+    [CmdletBinding(SupportsShouldProcess=$True)]
+    param
+    (
+        [Parameter(Mandatory=$True,ValuefromPipeline=$True,Position=0)]
+        [System.Management.Automation.PSCredential]$adminCredentials,
+        [Parameter(Mandatory=$True,ValuefromPipeline=$True,Position=1)]
+        [string]$targetUser,
+        [Parameter(Mandatory=$True,ValuefromPipeline=$True,Position=2)]
+        [string]$newPassword,
+        [Parameter(Position=3)]
+        [string]$descriptionUpdate = "Disabled - Do not reset",
+        [switch]$liveRun
+    )
+    # Func only takes secureString
+    $passToSet = ConvertTo-SecureString -AsPlainText $newPassword
+    if($liveRun){
+            Set-ADAccountPassword $targetUser -NewPassword $passToSet -Reset
+            Set-ADAccountExpiration -Identity $targetUser -DateTime ((get-date).adddays(-3).ToString('MM-dd-yyyy'))
+            Set-ADUser -Identity $targetUser -Description "descriptionUpdate"
+            Set-ADAccountControl $targetUser -CannotChangePassword $True
+    } else {
+            Set-ADAccountPassword $targetUser -NewPassword $passToSet -Reset -whatif
+            Set-ADAccountExpiration -Identity $targetUser -DateTime ((get-date).adddays(-3).ToString('MM-dd-yyyy')) -whatif
+            Set-ADUser -Identity $targetUser -Description "Disabled - Do not reset" -whatif
+            Set-ADAccountControl $targetUser -CannotChangePassword $True -whatif
+    } # end if liveRun
+} # end Set-SoftDisable
+
+
+
+
+
+
+
+<#
+    .SYNOPSIS
+        Batch Soft Disable of multiple AD Users By Matt Reski
+    .Description
+        Turn off Active Directory user's access via setting & locking the password to something they don't know.
+        Set the description to indicate an ticket is in progress.
+        Set expiration of the account to indicate when this was done.
+    .PARAMETER adminCredentials
+        User with permission to change passwords on the accounts
+    .PARAMETER targetFile
+        Text file to open with list of SamAccountName (no white space beside newline allowed)
+    .PARAMETER newPassword
+        New password to stick in each user
+    .PARAMETER ticket
+        Ticket number to include into the description
+    .EXAMPLE
+        .\batch-softdisable.ps1 $creds "userlist.txt" "tempPassword!" "2747643"
+    .EXAMPLE
+        .\batch-softdisable.ps1 $creds "2747643.txt" "tempPassword!" "2747643" -liveRun
+    .Notes
+        FunctionName    : Batch-SoftDisable
+        Created by      : Ku Yang
+        Date Created    : 08/2021
+        Installation    : Personal Windows Directory - $PSHome or $HOME\Documents\PowerShell\Modules
+        Installation    : Personal Windows Directory - $env:psmodulepath or $HOME\Documents\PowerShell\Modules
+ #>
+function Batch-SoftDisable {
+ [CmdletBinding(SupportsShouldProcess=$True)]
+    param
+    (
+        [Parameter(Mandatory=$True,ValuefromPipeline=$True,Position=0)]
+        [System.Management.Automation.PSCredential]$adminCredentials,
+        [Parameter(Mandatory=$True,ValuefromPipeline=$True,Position=1)]
+        [string]$targetFile,
+        [Parameter(Mandatory=$True,ValuefromPipeline=$True,Position=2)]
+        [string]$newPassword,
+        [Parameter(Mandatory=$True,ValuefromPipeline=$True,Position=3)]
+        [string]$ticket,
+        [switch]$liveRun
+    )
+    Begin
+    {
+        # Load the set-softdisable file
+        . ".\Set-SoftDisable.ps1"
+        # write-warning ((Split-Path $MyInvocation.InvocationName) + "\Set-SoftDisable.ps1")    
+        $fileList = Get-Content $targetFile
+    }
+    Process
+    {
+        foreach ($id in $fileList) {
+            # using `-whatif` before every run for quality check
+            if($liveRun){
+                Set-SoftDisable $adminCredentials $id $newPassword -liveRun
+            } else {
+                Set-SoftDisable $adminCredentials $id $newPassword "Disabled - $date - Ticket: $ticket"
+            }
+        }
+    }
+    End
+    {
+        write-output "Batch disable - End"
+    }
+}
+
+
+
+
+
+<#
+        Check AD account status
+        Ku Yang
+        
+        - Takes list of fields to check
+        - spits 
+        - Not Azure aware
+     #>
+function Get-UserCheck {
+    [CmdletBinding(SupportsShouldProcess=$True)]
+    param
+    (
+        [System.Management.Automation.PSCredential]$adminCredentials,
+        [string]$targetFile,
+        [string]$moreFields,
+        [switch]$json,
+        [switch]$file
+    )
+    Begin
+    {
+        $fields = "SamAccountName", "Name", "Enabled", "Description", "CannotChangePassword", "PasswordLastSet", "AccountExpirationDate"
+        $fileList = Get-Content $targetFile
+        $count = $fileList.count
+        $date = Get-Date
+        $date = $date.ToString("MMddyyyy-hhmm")
+        $outputFile = "UserCheck_$date.csv"
+        $resultlist = @{}
+    }
+    Process
+    {
+        write-output "Test Process"
+        foreach ($id in $fileList) {
+            $user = Get-ADUser $id -Properties $fields | select $fields
+            ## check null first incase of user being fully deleted
+            if ($null -eq $user)  {
+                # if we got here - user is already gone - but we may want to report this to script runner
+                # prep the hash as we migth have multiple users not found
+                $holder = @{}
+                # To do this we have to build the fields & put null in them by hand or splat null in all the fields
+                foreach ($field in $fields){ $holder.add($field, $null) }
+                $user = $holder
+            }
+            $resultlist[$id] = $user
+        }
+        $resultlist
+    }
+    End
+    {
+        # did calling script want files or just returned values
+        if($file){
+            # json or csv?
+            if ($json) {
+                $resultlist | ConvertTo-Json | export-csv
+            } else {
+                # since we're holding nested hashtable we need to unpack it to get them out
+                foreach ($i in $resultlist.values) { $i |  select $fields | export-csv -path "Active_$outputFile" -append  }
+            } # end if JSON
+            #$resultlist | export-csv -path "$outputFile" -append -force
+        } else {
+            $resultlist
+        } # end if Files
+        #add-content "CheckAccounts_$outputFile" -value $count
+        #(gc $outputFile) | ? {$_ -ne "" } | set-content $outputFile
+        write-output "Test End"
+    }
+}
