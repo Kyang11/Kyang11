@@ -4,7 +4,7 @@ import-module ActiveDirectory
 # Import CSV 
 $MoveList = Import-Csv -Path "C:\Temp\MoveADUsersOU.csv"
 # Specify target OU.This is where users will be moved.
-$TargetOU =  "OU=SOA 03 - LARA, OU=Users,OU=Hampton - VAN034,OU=VA,OU=Sites,DC=MAXCORP,DC=MAXIMUS"
+$TargetOU =  "OU=MN-03 - LARA, OU=Users,OU=St. Paul - VAN034,OU=VA,OU=Sites,DC=Ku,DC=local"
 # Import the data from CSV file and assign it to variable 
 $Imported_csv = Import-Csv -Path "C:\temp\MoveADUsersOU.csv" 
 
